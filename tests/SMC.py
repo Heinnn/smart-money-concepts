@@ -113,7 +113,7 @@ def add_bos_choch(fig, df, bos_choch_data):
                     y=[bos_choch_data["Level"][i], bos_choch_data["Level"][i]],
                     mode="lines",
                     line=dict(
-                        color="rgba(0, 0, 255, 0.2)",
+                        color="rgba(255, 255, 255, 0.2)",
                     ),
                 )
             )
@@ -124,7 +124,7 @@ def add_bos_choch(fig, df, bos_choch_data):
                     mode="text",
                     text="CHOCH",
                     textposition="top center" if bos_choch_data["CHOCH"][i] == 1 else "bottom center",
-                    textfont=dict(color="rgba(0, 0, 255, 0.4)", size=8),
+                    textfont=dict(color="rgba(255, 255, 255, 0.4)", size=8),
                 )
             )
 
@@ -157,8 +157,8 @@ def add_OB(fig, df, ob_data):
                 y0=ob_data["Bottom"][i],
                 x1=df.index[x1],
                 y1=ob_data["Top"][i],
-                line=dict(color="Purple"),
-                fillcolor="Purple",
+                line=dict(color="Salmon"),
+                fillcolor="Salmon",
                 opacity=0.2,
                 name="Bullish OB",
                 legendgroup="bullish ob",
@@ -173,7 +173,7 @@ def add_OB(fig, df, ob_data):
             y_center = (ob_data["Bottom"][i] + ob_data["Top"][i]) / 2
             volume_text = format_volume(ob_data["OBVolume"][i])
             # Add annotation text
-            annotation_text = f'OB: {volume_text} ({ob_data["Percentage"][i]}%)'
+            annotation_text = f'{volume_text} ({ob_data["Percentage"][i]}%)'
 
             fig.add_annotation(
                 x=x_center,
@@ -182,7 +182,7 @@ def add_OB(fig, df, ob_data):
                 yref="y",
                 align="center",
                 text=annotation_text,
-                font=dict(color="rgba(255, 255, 255, 0.4)", size=8),
+                font=dict(color="rgba(250, 250, 250, 1)", size=8),
                 showarrow=False,
             )
 
@@ -199,8 +199,8 @@ def add_OB(fig, df, ob_data):
                 y0=ob_data["Bottom"][i],
                 x1=df.index[x1],
                 y1=ob_data["Top"][i],
-                line=dict(color="Purple"),
-                fillcolor="Purple",
+                line=dict(color="Salmon"),
+                fillcolor="Salmon",
                 opacity=0.2,
                 name="Bearish OB",
                 legendgroup="bearish ob",
@@ -215,7 +215,7 @@ def add_OB(fig, df, ob_data):
             y_center = (ob_data["Bottom"][i] + ob_data["Top"][i]) / 2
             volume_text = format_volume(ob_data["OBVolume"][i])
             # Add annotation text
-            annotation_text = f'OB: {volume_text} ({ob_data["Percentage"][i]}%)'
+            annotation_text = f'{volume_text} ({ob_data["Percentage"][i]}%)'
 
             fig.add_annotation(
                 x=x_center,
@@ -224,7 +224,7 @@ def add_OB(fig, df, ob_data):
                 yref="y",
                 align="center",
                 text=annotation_text,
-                font=dict(color="rgba(255, 255, 255, 0.4)", size=8),
+                font=dict(color="rgba(250, 250, 250, 1)", size=8),
                 showarrow=False,
             )
     return fig
@@ -437,8 +437,8 @@ def import_data(symbol, start_str, timeframe):
     return df
 
 
-df = import_data("BTCUSDT", "2024-04-01", "15m")
-df = df.iloc[-500:]
+# df = import_data("BTCUSDT", "2024-08-01", "15m")
+# df = df.iloc[-500:]
 
 def fig_to_buffer(fig):
     fig_bytes = fig.to_image(format="png")
@@ -447,56 +447,56 @@ def fig_to_buffer(fig):
     return np.array(fig_image)
 
 
-gif = []
+# gif = []
 
-window = 100
-for pos in range(window, len(df)):
-    window_df = df.iloc[pos - window : pos]
+# window = 100
+# for pos in range(window, len(df)):
+#     window_df = df.iloc[pos - window : pos]
 
-    fig = go.Figure(
-        data=[
-            go.Candlestick(
-                x=window_df.index,
-                open=window_df["open"],
-                high=window_df["high"],
-                low=window_df["low"],
-                close=window_df["close"],
-                increasing_line_color="#77dd76",
-                decreasing_line_color="#ff6962",
-            )
-        ]
-    )
+#     fig = go.Figure(
+#         data=[
+#             go.Candlestick(
+#                 x=window_df.index,
+#                 open=window_df["open"],
+#                 high=window_df["high"],
+#                 low=window_df["low"],
+#                 close=window_df["close"],
+#                 increasing_line_color="#77dd76",
+#                 decreasing_line_color="#ff6962",
+#             )
+#         ]
+#     )
 
-    fvg_data = smc.fvg(window_df, join_consecutive=True)
-    swing_highs_lows_data = smc.swing_highs_lows(window_df, swing_length=5)
-    bos_choch_data = smc.bos_choch(window_df, swing_highs_lows_data)
-    ob_data = smc.ob(window_df, swing_highs_lows_data)
-    liquidity_data = smc.liquidity(window_df, swing_highs_lows_data)
-    previous_high_low_data = smc.previous_high_low(window_df, time_frame="4h")
-    sessions = smc.sessions(window_df, session="London")
-    retracements = smc.retracements(window_df, swing_highs_lows_data)
-    fig = add_FVG(fig, window_df, fvg_data)
-    fig = add_swing_highs_lows(fig, window_df, swing_highs_lows_data)
-    fig = add_bos_choch(fig, window_df, bos_choch_data)
-    fig = add_OB(fig, window_df, ob_data)
-    fig = add_liquidity(fig, window_df, liquidity_data)
-    fig = add_previous_high_low(fig, window_df, previous_high_low_data)
-    fig = add_sessions(fig, window_df, sessions)
-    fig = add_retracements(fig, window_df, retracements)
+#     fvg_data = smc.fvg(window_df, join_consecutive=True)
+#     swing_highs_lows_data = smc.swing_highs_lows(window_df, swing_length=5)
+#     bos_choch_data = smc.bos_choch(window_df, swing_highs_lows_data)
+#     ob_data = smc.ob(window_df, swing_highs_lows_data)
+#     liquidity_data = smc.liquidity(window_df, swing_highs_lows_data)
+#     previous_high_low_data = smc.previous_high_low(window_df, time_frame="4h")
+#     sessions = smc.sessions(window_df, session="London")
+#     retracements = smc.retracements(window_df, swing_highs_lows_data)
+#     fig = add_FVG(fig, window_df, fvg_data)
+#     fig = add_swing_highs_lows(fig, window_df, swing_highs_lows_data)
+#     fig = add_bos_choch(fig, window_df, bos_choch_data)
+#     fig = add_OB(fig, window_df, ob_data)
+#     fig = add_liquidity(fig, window_df, liquidity_data)
+#     fig = add_previous_high_low(fig, window_df, previous_high_low_data)
+#     fig = add_sessions(fig, window_df, sessions)
+#     fig = add_retracements(fig, window_df, retracements)
 
-    fig.update_layout(xaxis_rangeslider_visible=False)
-    fig.update_layout(showlegend=False)
-    fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-    fig.update_xaxes(visible=False, showticklabels=False)
-    fig.update_yaxes(visible=False, showticklabels=False)
-    fig.update_layout(plot_bgcolor="rgba(0,0,0,0)")
-    fig.update_layout(paper_bgcolor="rgba(12, 14, 18, 1)")
-    fig.update_layout(font=dict(color="white"))
+#     fig.update_layout(xaxis_rangeslider_visible=False)
+#     fig.update_layout(showlegend=False)
+#     fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+#     fig.update_xaxes(visible=False, showticklabels=False)
+#     fig.update_yaxes(visible=False, showticklabels=False)
+#     fig.update_layout(plot_bgcolor="rgba(0,0,0,0)")
+#     fig.update_layout(paper_bgcolor="rgba(12, 14, 18, 1)")
+#     fig.update_layout(font=dict(color="white"))
 
-    # reduce the size of the image
-    fig.update_layout(width=500, height=300)
+#     # reduce the size of the image
+#     fig.update_layout(width=500, height=300)
 
-    gif.append(fig_to_buffer(fig))
+#     gif.append(fig_to_buffer(fig))
 
-# save the gif
-imageio.mimsave("test.gif", gif, duration=1)
+# # save the gif
+# imageio.mimsave("test.gif", gif, duration=1)
