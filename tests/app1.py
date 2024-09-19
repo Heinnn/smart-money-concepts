@@ -213,7 +213,7 @@ def create_smc_plot(df, timeframe, freq_mapping, dvalue=30, width=400, height=30
         y=window_df['EMA20'],
         mode='lines',
         name='EMA20',
-        line=dict(color='blue', width=1)
+        line=dict(color='darkolivegreen', width=1)
     ))
     fig.add_trace(go.Scatter(
         x=window_df.index,
@@ -227,7 +227,7 @@ def create_smc_plot(df, timeframe, freq_mapping, dvalue=30, width=400, height=30
         y=window_df['EMA100'],
         mode='lines',
         name='EMA100',
-        line=dict(color='purple', width=1)
+        line=dict(color='indianred', width=1)
     ))
 
     # Add SMC-related overlays to the chart
@@ -242,8 +242,8 @@ def create_smc_plot(df, timeframe, freq_mapping, dvalue=30, width=400, height=30
         plot_bgcolor="rgba(34, 42, 58, 0.8)",
         paper_bgcolor="rgba(34, 42, 58, 0.8)",
         font=dict(color="white"),
-        width=width,
-        height=height,
+        # width=width,
+        # height=height,
         margin=dict(l=0, r=50, b=0, t=30, pad=0),
         title_text=timeframe,
         title_x=0.5,
@@ -385,7 +385,7 @@ def create_smc_plot_1d(df, timeframe, freq_mapping, dvalue=30, width=1000, heigh
         y=window_df['EMA20'],
         mode='lines',
         name='EMA20',
-        line=dict(color='blue', width=1)
+        line=dict(color='darkolivegreen', width=1)
     ))
     fig.add_trace(go.Scatter(
         x=window_df.index,
@@ -399,7 +399,7 @@ def create_smc_plot_1d(df, timeframe, freq_mapping, dvalue=30, width=1000, heigh
         y=window_df['EMA100'],
         mode='lines',
         name='EMA100',
-        line=dict(color='purple', width=1)
+        line=dict(color='indianred', width=1)
     ))
     fig.add_trace(go.Scatter(
         x=window_df.index,
