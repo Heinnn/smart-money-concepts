@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import pandas as pd
 from SMC import *  
 from tvDatafeed import TvDatafeed, Interval
+from binance.client import Client  # Add Binance Client
 
 # Use Bootstrap theme for better visual appeal
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
