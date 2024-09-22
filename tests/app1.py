@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 # Binance API credentials (Ensure these are securely stored)
 BINANCE_API_KEY = os.getenv('BINANCE_API_KEY')
 BINANCE_API_SECRET = os.getenv('BINANCE_API_SECRET')
-print(BINANCE_API_KEY,BINANCE_API_SECRET)
+
 # Initialize Binance Client if API credentials are provided
 if BINANCE_API_KEY and BINANCE_API_SECRET:
     binance_client = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
@@ -28,6 +28,7 @@ else:
     binance_client = None
     logging.warning("Binance API credentials not provided. Binance data source will be unavailable.")
 
+# LAYOUT SECTION------------------------------------------------------------------------------------
 # Use Bootstrap theme for better visual appeal
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
 
@@ -92,86 +93,9 @@ app.layout = dbc.Container(
     style={"padding": "20px"}
 )
 
-# Function to fetch historical data from TradingView
-def fetch_data_tv(symbol, exchange):
-    tv = TvDatafeed()
-    df_1d = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_daily, n_bars=400)
-    df_4h = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_4_hour, n_bars=400)
-    df_1h = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_1_hour, n_bars=400)
-    df_30t = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_30_minute, n_bars=400)
-    df_15t = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_15_minute, n_bars=400)
-    df_5t = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_5_minute, n_bars=400)
-    return df_1d, df_4h, df_1h, df_30t, df_15t, df_5t
-
-# Function to fetch historical data using Binance
-def fetch_data_binance(client, symbol, intervals, limit=400):
-    """
-    Retrieve historical data for a symbol from Binance API.
-
-    Parameters:
-    - client (binance.client.Client): Initialized Binance client with API credentials.
-    - symbol (str): Symbol (e.g., "BTCUSDT").
-    - intervals (list): List of intervals (e.g., ["1d", "4h", "1h", "30min", "15min", "5min"]).
-    - limit (int): Number of data points to retrieve.
-
-    Returns:
-    - data (dict): Dictionary containing DataFrames for each interval.
-    """
-    data = {}
-    for interval in intervals:
-        logging.info(f"Fetching {interval} data for {symbol} from Binance.")
-        try:
-            klines = client.get_historical_klines(symbol, interval, limit=limit)
-            df = pd.DataFrame(klines, columns=[
-                'open_time', 'open', 'high', 'low', 'close', 'volume',
-                'close_time', 'quote_asset_volume', 'number_of_trades',
-                'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
-            ])
-            df['open_time'] = pd.to_datetime(df['open_time'], unit='ms')
-            df.set_index('open_time', inplace=True)
-            # Convert numerical columns to appropriate data types
-            for column in ['open', 'high', 'low', 'close', 'volume']:
-                df[column] = pd.to_numeric(df[column], errors='coerce')
-            data[interval] = df
-        except Exception as e:
-            logging.error(f"Error fetching {symbol} at interval {interval} from Binance: {e}")
-            data[interval] = pd.DataFrame()  # Return empty DataFrame on error
-    return data
-
-# Unified function to fetch data based on selected data source
-def fetch_data(symbol, exchange, data_source):
-    if data_source == 'tvDatafeed':
-        return fetch_data_tv(symbol, exchange)
-    elif data_source == 'binance':
-        if binance_client is None:
-            logging.error("Binance client is not initialized. Check your API credentials.")
-            return (pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
-        # Binance requires symbols like "BTCUSDT", ensure the symbol format is correct
-        # Adjust exchange if necessary or map it to Binance's exchange format
-        # For simplicity, we'll assume the symbol is correctly formatted for Binance
-        intervals = ['1d', '4h', '1h', '30m', '15m', '5m']
-        data_binance = fetch_data_binance(binance_client, symbol, intervals, limit=400)
-        # Map Binance intervals to the expected order
-        df_1d = data_binance.get('1d', pd.DataFrame())
-        df_4h = data_binance.get('4h', pd.DataFrame())
-        df_1h = data_binance.get('1h', pd.DataFrame())
-        df_30t = data_binance.get('30m', pd.DataFrame())
-        df_15t = data_binance.get('15m', pd.DataFrame())
-        df_5t = data_binance.get('5m', pd.DataFrame())
-        return df_1d, df_4h, df_1h, df_30t, df_15t, df_5t
-    else:
-        logging.error(f"Unsupported data source: {data_source}")
-        return (pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
-
-# Function to find range breaks
-def find_rangebreaks(df, freq):
-    ref_date = pd.date_range(start=pd.Timestamp(df.index[0]), end=pd.Timestamp(df.index[-1]), freq=freq)
-    df_index_as_date = pd.to_datetime(df.index)
-    rangebreak_list = ref_date.difference(df_index_as_date)
-    return rangebreak_list
 
 # Function to create a plot with layout improvements
-def create_smc_plot(df, timeframe, freq_mapping, dvalue=30, width=400, height=300):
+def create_smc_plot(df, timeframe, freq_mapping, swing_length_mapping, dvalue=30, width=400, height=300):
     window_df = df.copy()
 
     if window_df.empty:
@@ -184,10 +108,11 @@ def create_smc_plot(df, timeframe, freq_mapping, dvalue=30, width=400, height=30
     window_df['EMA100'] = window_df['close'].ewm(span=100, adjust=False).mean()
 
     # Slice to last 100 data points
-    window_df = window_df.tail(100)
+    # window_df = window_df.tail(100)
 
     # Recompute SMC indicators on the reduced data
-    swing_highs_lows_data = smc.swing_highs_lows(window_df, swing_length=50)
+    swing_length = swing_length_mapping[timeframe]
+    swing_highs_lows_data = smc.swing_highs_lows(window_df, swing_length=swing_length)
     bos_choch_data = smc.bos_choch(window_df, swing_highs_lows_data)
     ob_data = smc.ob(window_df, swing_highs_lows_data)
     sessions = smc.sessions(window_df, session="New York kill zone")
@@ -264,84 +189,6 @@ def create_smc_plot(df, timeframe, freq_mapping, dvalue=30, width=400, height=30
 
     return fig
 
-# Function to fetch historical data from TradingView
-def fetch_data_tv(symbol, exchange):
-    tv = TvDatafeed()
-    df_1d = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_daily, n_bars=400)
-    df_4h = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_4_hour, n_bars=400)
-    df_1h = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_1_hour, n_bars=400)
-    df_30t = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_30_minute, n_bars=400)
-    df_15t = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_15_minute, n_bars=400)
-    df_5t = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_5_minute, n_bars=400)
-    return df_1d, df_4h, df_1h, df_30t, df_15t, df_5t
-
-# Function to fetch historical data using Binance
-def fetch_data_binance(client, symbol, intervals, limit=400):
-    """
-    Retrieve historical data for a symbol from Binance API.
-
-    Parameters:
-    - client (binance.client.Client): Initialized Binance client with API credentials.
-    - symbol (str): Symbol (e.g., "BTCUSDT").
-    - intervals (list): List of intervals (e.g., ["1d", "4h", "1h", "30min", "15min", "5min"]).
-    - limit (int): Number of data points to retrieve.
-
-    Returns:
-    - data (dict): Dictionary containing DataFrames for each interval.
-    """
-    data = {}
-    for interval in intervals:
-        logging.info(f"Fetching {interval} data for {symbol} from Binance.")
-        try:
-            klines = client.get_historical_klines(symbol, interval, limit=limit)
-            df = pd.DataFrame(klines, columns=[
-                'open_time', 'open', 'high', 'low', 'close', 'volume',
-                'close_time', 'quote_asset_volume', 'number_of_trades',
-                'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
-            ])
-            df['open_time'] = pd.to_datetime(df['open_time'], unit='ms')
-            df.set_index('open_time', inplace=True)
-            # Convert numerical columns to appropriate data types
-            for column in ['open', 'high', 'low', 'close', 'volume']:
-                df[column] = pd.to_numeric(df[column], errors='coerce')
-            data[interval] = df
-        except Exception as e:
-            logging.error(f"Error fetching {symbol} at interval {interval} from Binance: {e}")
-            data[interval] = pd.DataFrame()  # Return empty DataFrame on error
-    return data
-
-# Unified function to fetch data based on selected data source
-def fetch_data(symbol, exchange, data_source):
-    if data_source == 'tvDatafeed':
-        return fetch_data_tv(symbol, exchange)
-    elif data_source == 'binance':
-        if binance_client is None:
-            logging.error("Binance client is not initialized. Check your API credentials.")
-            return (pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
-        # Binance requires symbols like "BTCUSDT", ensure the symbol format is correct
-        # Adjust exchange if necessary or map it to Binance's exchange format
-        # For simplicity, we'll assume the symbol is correctly formatted for Binance
-        intervals = ['1d', '4h', '1h', '30m', '15m', '5m']
-        data_binance = fetch_data_binance(binance_client, symbol, intervals, limit=400)
-        # Map Binance intervals to the expected order
-        df_1d = data_binance.get('1d', pd.DataFrame())
-        df_4h = data_binance.get('4h', pd.DataFrame())
-        df_1h = data_binance.get('1h', pd.DataFrame())
-        df_30t = data_binance.get('30m', pd.DataFrame())
-        df_15t = data_binance.get('15m', pd.DataFrame())
-        df_5t = data_binance.get('5m', pd.DataFrame())
-        return df_1d, df_4h, df_1h, df_30t, df_15t, df_5t
-    else:
-        logging.error(f"Unsupported data source: {data_source}")
-        return (pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
-
-# Function to find range breaks
-def find_rangebreaks(df, freq):
-    ref_date = pd.date_range(start=pd.Timestamp(df.index[0]), end=pd.Timestamp(df.index[-1]), freq=freq)
-    df_index_as_date = pd.to_datetime(df.index)
-    rangebreak_list = ref_date.difference(df_index_as_date)
-    return rangebreak_list
-
 # Function to create a plot with layout improvements
 def create_smc_plot_1d(df, timeframe, freq_mapping, dvalue=30, width=1000, height=450):
     window_df = df.copy()
@@ -366,8 +213,8 @@ def create_smc_plot_1d(df, timeframe, freq_mapping, dvalue=30, width=1000, heigh
     sessions = smc.sessions(window_df, session="New York kill zone")
 
     # Recompute range breaks based on the reduced data
-    freq = freq_mapping[timeframe]
-    rangebreak_list = find_rangebreaks(window_df, freq)
+    # freq = freq_mapping[timeframe]
+    # rangebreak_list = find_rangebreaks(window_df, freq)
 
     fig = go.Figure(data=[go.Candlestick(
         x=window_df.index,
@@ -444,6 +291,100 @@ def create_smc_plot_1d(df, timeframe, freq_mapping, dvalue=30, width=1000, heigh
 
     return fig
 
+# Function to fetch historical data from TradingView
+def fetch_data_tv(symbol, exchange, n_bars):
+    tv = TvDatafeed()
+    df_1d = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_daily, n_bars=1000)
+    df_4h = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_4_hour, n_bars=500)
+    df_1h = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_1_hour, n_bars=500)
+    df_30t = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_30_minute, n_bars=500)
+    df_15t = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_15_minute, n_bars=200)
+    df_5t = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_5_minute, n_bars=200)
+    return df_1d, df_4h, df_1h, df_30t, df_15t, df_5t
+
+# Function to fetch historical data using Binance
+def fetch_data_binance(client, symbol, interval_limits):
+    """
+    Retrieve historical data for a symbol from Binance API.
+
+    Parameters:
+    - client (binance.client.Client): Initialized Binance client with API credentials.
+    - symbol (str): Symbol (e.g., "BTCUSDT").
+    - interval_limits (dict): Dictionary of intervals (e.g., {"1d": 1000, "4h": 500, "1h": 500, "30m": 300, "15m": 300, "5m": 300})
+                              where keys are intervals and values are the corresponding limits.
+
+    Returns:
+    - data (dict): Dictionary containing DataFrames for each interval.
+    """
+    data = {}
+    for interval, limit in interval_limits.items():
+        logging.info(f"Fetching {interval} data for {symbol} from Binance with limit {limit}.")
+        try:
+            # Fetch historical klines data from Binance
+            klines = client.get_historical_klines(symbol, interval, limit=limit)
+            df = pd.DataFrame(klines, columns=[
+                'open_time', 'open', 'high', 'low', 'close', 'volume',
+                'close_time', 'quote_asset_volume', 'number_of_trades',
+                'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
+            ])
+            df['open_time'] = pd.to_datetime(df['open_time'], unit='ms')
+            df.set_index('open_time', inplace=True)
+            
+            # Convert numerical columns to appropriate data types
+            for column in ['open', 'high', 'low', 'close', 'volume']:
+                df[column] = pd.to_numeric(df[column], errors='coerce')
+                
+            data[interval] = df  # Store the DataFrame in the dictionary for the interval
+        except Exception as e:
+            logging.error(f"Error fetching {symbol} data at interval {interval} from Binance: {e}")
+            data[interval] = pd.DataFrame()  # Return empty DataFrame on error
+            
+    return data
+
+
+# Unified function to fetch data based on selected data source
+def fetch_data(symbol, exchange, data_source, n_bar=1000):
+    if data_source == 'tvDatafeed':
+        return fetch_data_tv(symbol, exchange, n_bar)
+    elif data_source == 'binance':
+        if binance_client is None:
+            logging.error("Binance client is not initialized. Check your API credentials.")
+            return (pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
+        # Binance requires symbols like "BTCUSDT", ensure the symbol format is correct
+        # Adjust exchange if necessary or map it to Binance's exchange format
+        # For simplicity, we'll assume the symbol is correctly formatted for Binance
+        intervals = ['1d', '4h', '1h', '30m', '15m', '5m']
+        interval_limits = {
+                            '1d': 1000,
+                            '4h': 500,
+                            '1h': 500,
+                            '30m': 350,
+                            '15m': 200,
+                            '5m': 200
+                        }
+
+        data_binance = fetch_data_binance(binance_client, symbol, interval_limits)
+        # Map Binance intervals to the expected order
+        df_1d = data_binance.get('1d', pd.DataFrame())
+        df_4h = data_binance.get('4h', pd.DataFrame())
+        df_1h = data_binance.get('1h', pd.DataFrame())
+        df_30t = data_binance.get('30m', pd.DataFrame())
+        df_15t = data_binance.get('15m', pd.DataFrame())
+        df_5t = data_binance.get('5m', pd.DataFrame())
+        return df_1d, df_4h, df_1h, df_30t, df_15t, df_5t
+    else:
+        logging.error(f"Unsupported data source: {data_source}")
+        return (pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
+
+# Function to find range breaks
+def find_rangebreaks(df, freq):
+    ref_date = pd.date_range(start=pd.Timestamp(df.index[0]), end=pd.Timestamp(df.index[-1]), freq=freq)
+    df_index_as_date = pd.to_datetime(df.index)
+    rangebreak_list = ref_date.difference(df_index_as_date)
+    return rangebreak_list
+
+
+# CALLBACK SECTION------------------------------------------------------------------------------------
 # Callback to update the graphs
 @app.callback(
     [
@@ -491,14 +432,24 @@ def update_graph(n_clicks, symbol, exchange, data_source):
             '15min': 15,
             '5min': 5
         }
+        
+        # Define OB swing_length based on timeframe
+        swing_length_mapping = {
+            '1d': 10,
+            '4h': 20,
+            '1h': 20,
+            '30min': 20,
+            '15min': 10,
+            '5min': 10
+        }
 
         # Create the plots with correct dvalue (in minutes)
         # fig_1d = create_smc_plot(df_1d, timeframe='1d', freq_mapping=freq_mapping, dvalue=dvalue_mapping['1d'])
-        fig_4h = create_smc_plot(df_4h, timeframe='4h', freq_mapping=freq_mapping, dvalue=dvalue_mapping['4h'])
-        fig_1h = create_smc_plot(df_1h, timeframe='1h', freq_mapping=freq_mapping, dvalue=dvalue_mapping['1h'])
-        fig_30t = create_smc_plot(df_30t, timeframe='30min', freq_mapping=freq_mapping, dvalue=dvalue_mapping['30min'])
-        fig_15t = create_smc_plot(df_15t, timeframe='15min', freq_mapping=freq_mapping, dvalue=dvalue_mapping['15min'])
-        fig_5t = create_smc_plot(df_5t, timeframe='5min', freq_mapping=freq_mapping, dvalue=dvalue_mapping['5min'])
+        fig_4h = create_smc_plot(df_4h, timeframe='4h', freq_mapping=freq_mapping, swing_length_mapping=swing_length_mapping, dvalue=dvalue_mapping['4h'])
+        fig_1h = create_smc_plot(df_1h, timeframe='1h', freq_mapping=freq_mapping, swing_length_mapping=swing_length_mapping, dvalue=dvalue_mapping['1h'])
+        fig_30t = create_smc_plot(df_30t, timeframe='30min', freq_mapping=freq_mapping, swing_length_mapping=swing_length_mapping, dvalue=dvalue_mapping['30min'])
+        fig_15t = create_smc_plot(df_15t, timeframe='15min', freq_mapping=freq_mapping, swing_length_mapping=swing_length_mapping, dvalue=dvalue_mapping['15min'])
+        fig_5t = create_smc_plot(df_5t, timeframe='5min', freq_mapping=freq_mapping, swing_length_mapping=swing_length_mapping, dvalue=dvalue_mapping['5min'])
 
         fig_1d_full = create_smc_plot_1d(df_1d, timeframe='1d', freq_mapping=freq_mapping, dvalue=dvalue_mapping['1d'])
 
@@ -512,4 +463,4 @@ def update_graph(n_clicks, symbol, exchange, data_source):
 
 # Run the app
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=True)
