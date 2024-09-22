@@ -78,9 +78,9 @@ app.layout = dbc.Container(
 
         # Second Row of Plots
         dbc.Row([
-            dbc.Col(dbc.Card(dbc.CardBody([dcc.Graph(id='fig_1h', figure={})]), style={"height": "100%"}), width=4),
-            dbc.Col(dbc.Card(dbc.CardBody([dcc.Graph(id="fig_4h", figure={})]), style={"height": "100%"}), width=4),
-            dbc.Col(dbc.Card(dbc.CardBody([dcc.Graph(id="fig_1d", figure={})]), style={"height": "100%"}), width=4),
+            dbc.Col(dbc.Card(dbc.CardBody([dcc.Graph(id='fig_1h', figure={})]), style={"height": "100%"}), width=6),
+            dbc.Col(dbc.Card(dbc.CardBody([dcc.Graph(id="fig_4h", figure={})]), style={"height": "100%"}), width=6),
+            # dbc.Col(dbc.Card(dbc.CardBody([dcc.Graph(id="fig_1d", figure={})]), style={"height": "100%"}), width=4),
         ], className="mb-4"),
 
             # Third Row of Plots
@@ -187,7 +187,7 @@ def create_smc_plot(df, timeframe, freq_mapping, dvalue=30, width=400, height=30
     window_df = window_df.tail(100)
 
     # Recompute SMC indicators on the reduced data
-    swing_highs_lows_data = smc.swing_highs_lows(window_df, swing_length=5)
+    swing_highs_lows_data = smc.swing_highs_lows(window_df, swing_length=50)
     bos_choch_data = smc.bos_choch(window_df, swing_highs_lows_data)
     ob_data = smc.ob(window_df, swing_highs_lows_data)
     sessions = smc.sessions(window_df, session="New York kill zone")
@@ -231,6 +231,7 @@ def create_smc_plot(df, timeframe, freq_mapping, dvalue=30, width=400, height=30
     ))
 
     # Add SMC-related overlays to the chart
+    fig = add_swing_highs_lows(fig, window_df, swing_highs_lows_data)
     fig = add_bos_choch(fig, window_df, bos_choch_data)
     fig = add_OB(fig, window_df, ob_data)
     fig = add_sessions(fig, window_df, sessions)
@@ -359,7 +360,7 @@ def create_smc_plot_1d(df, timeframe, freq_mapping, dvalue=30, width=1000, heigh
     window_df = window_df.tail(250)
 
     # Recompute SMC indicators on the reduced data
-    swing_highs_lows_data = smc.swing_highs_lows(window_df, swing_length=5)
+    swing_highs_lows_data = smc.swing_highs_lows(window_df, swing_length=10)
     bos_choch_data = smc.bos_choch(window_df, swing_highs_lows_data)
     ob_data = smc.ob(window_df, swing_highs_lows_data)
     sessions = smc.sessions(window_df, session="New York kill zone")
@@ -410,6 +411,7 @@ def create_smc_plot_1d(df, timeframe, freq_mapping, dvalue=30, width=1000, heigh
     ))
 
     # Add SMC-related overlays to the chart
+    fig = add_swing_highs_lows(fig, window_df, swing_highs_lows_data)
     fig = add_bos_choch(fig, window_df, bos_choch_data)
     fig = add_OB(fig, window_df, ob_data)
     fig = add_sessions(fig, window_df, sessions)
@@ -450,7 +452,7 @@ def create_smc_plot_1d(df, timeframe, freq_mapping, dvalue=30, width=1000, heigh
         Output('fig_30t', 'figure'),
         Output('fig_1h', 'figure'),
         Output('fig_4h', 'figure'),
-        Output('fig_1d', 'figure'),
+        # Output('fig_1d', 'figure'),
         Output('fig_1d_full', 'figure'),
     ],
     [Input('submit-val', 'n_clicks')],
@@ -491,7 +493,7 @@ def update_graph(n_clicks, symbol, exchange, data_source):
         }
 
         # Create the plots with correct dvalue (in minutes)
-        fig_1d = create_smc_plot(df_1d, timeframe='1d', freq_mapping=freq_mapping, dvalue=dvalue_mapping['1d'])
+        # fig_1d = create_smc_plot(df_1d, timeframe='1d', freq_mapping=freq_mapping, dvalue=dvalue_mapping['1d'])
         fig_4h = create_smc_plot(df_4h, timeframe='4h', freq_mapping=freq_mapping, dvalue=dvalue_mapping['4h'])
         fig_1h = create_smc_plot(df_1h, timeframe='1h', freq_mapping=freq_mapping, dvalue=dvalue_mapping['1h'])
         fig_30t = create_smc_plot(df_30t, timeframe='30min', freq_mapping=freq_mapping, dvalue=dvalue_mapping['30min'])
@@ -502,10 +504,11 @@ def update_graph(n_clicks, symbol, exchange, data_source):
 
 
         # Return all figures in the order of Outputs
-        return fig_5t, fig_15t, fig_30t, fig_1h, fig_4h, fig_1d, fig_1d_full
+        # return fig_5t, fig_15t, fig_30t, fig_1h, fig_4h, fig_1d, fig_1d_full
+        return fig_5t, fig_15t, fig_30t, fig_1h, fig_4h, fig_1d_full
 
     # If n_clicks is 0, return empty figures
-    return {}, {}, {}, {}, {}, {}, {}
+    return {}, {}, {}, {}, {}, {} # {}
 
 # Run the app
 if __name__ == '__main__':
